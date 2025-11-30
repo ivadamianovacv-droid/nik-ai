@@ -1,0 +1,96 @@
+// server.js - Примерен Node.js/Express бекенд за чатбот "Nik AI"
+// Този бекенд приема въпроси от фронтенда и ги изпраща към OpenAI API.
+// ВАЖНО: Никога не поставяй API ключове на фронтенд! Само бекендът може да ги пази.
+
+import express from "express";
+import cors from "cors";
+import bodyParser from "body-parser";
+import OpenAI from "openai";
+
+// Настройки
+const app = express();
+app.use(cors());
+app.use(bodyParser.json());
+
+// Зареждане на OpenAI клиент
+// Сложи твоя API ключ в .env файл като: OPENAI_API_KEY=ТВОЯ_КЛЮЧ
+const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+// Основен POST endpoint за въпроси към AI модела
+app.post("/ask", async (req, res) => {
+  try {
+    const question = req.body.question;
+
+    if (!question) {
+      return res.status(400).json({ error: "No question provided" });
+    }
+
+    // Изпращаме въпроса към модел (пример: gpt-4.1-mini)
+    const completion = await client.chat.completions.create({
+      model: "gpt-4.1-mini",
+      messages: [
+        {
+          role: "system",
+          content: "Ти си Nik AI — образователен чатбот, който отговаря исторически коректно за комунизма в България. Обясняваш кратко, ясно и точност е приоритет. Не измисляй факти. Ако не знаеш, кажи, че нямаш информация."
+        },
+        {
+          role: "user",
+          content: question
+        }
+      ]
+    });
+
+    const answer = completion.choices[0].message.content;
+
+    return res.json({ answer });
+  } catch (error) {
+    console.error("AI error:", error);
+    return res.status(500).json({ error: "Server or AI error" });
+  }
+});
+
+// Стартиране на сървъра
+const PORT = process.env.PORT || 3001;
+app.listen(PORT, () => {
+  console.log(`Nik AI backend running on port ${PORT}`);
+});
+
+/*
+===============================
+ ИНСТРУКЦИИ ЗА ПУСКАНЕ ЛОКАЛНО
+===============================
+1) Сложи файла в папка, например backend/server.js
+2) Създай package.json с:
+{
+  "type": "module",
+  "dependencies": {
+    "express": "^4.19.0",
+    "cors": "^2.8.5",
+    "body-parser": "^1.20.2",
+    "openai": "^4.0.0"
+  }
+}
+3) Инсталирай:
+   npm install
+
+4) Създай .env файл:
+   OPENAI_API_KEY=ТУК_СИ_СЛАГАШ_КЛЮЧА
+
+5) Стартирай:
+   node server.js
+
+6) Фронтендът ти ще прави заявки към:
+   POST http://localhost:3001/ask
+
+===============================
+ Инструкции за деплой (Vercel / Render / Railway)
+===============================
+- Качи папката в GitHub
+- В Vercel/Render създай нов проект от хранилището
+- В секцията Environment Variables добави:
+    OPENAI_API_KEY = ТВОЯ_КЛЮЧ
+- Деплойваш и получаваш публичен URL, напр.:
+    https://nik-ai-backend.onrender.com/ask
+
+После просто сменяш URL-а във фронтенда от "http://localhost:3001/ask" към публичния.
+*/

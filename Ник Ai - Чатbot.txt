@@ -1,0 +1,162 @@
+import React, { useState, useEffect, useRef } from 'react';
+
+// NIK AI — прост, публичен чатбот за въпроси за комунизма
+// Това е single-file React компонент, стилизиран с Tailwind CSS.
+// Какво прави:
+// - Локална "knowledge base" (въпроси + отговори) и прост алгоритъм за съвпадение;
+// - UI за чат (въвеждане, изпращане, превъртане до най-новото съобщение);
+// - Възможност да се превключи към външен генеративен API чрез callback (виж бележките).
+// - Насоки за публикуване: host на Vercel/Netlify/GitHub Pages.
+
+// Важно: НЕ събирай лични данни от малолетни. Ако публикуваш публично, добави предупреждение
+// и бутон за контакт. Не записвай чувствителни данни в логовете.
+
+const localKnowledge = [
+  {
+    id: 1,
+    q: 'Какво означава свободата на словото по време на комунизма?',
+    a: 'По време на комунизма свободата на словото беше силно ограничена. Критични мнения спрямо управлението често водеха до наблюдение, репресии и в някои случаи арест и затвор. Държавата контролираше медиите и цензурираше публикации, театри и филми.'
+  },
+  {
+    id: 2,
+    q: 'Можеха ли хората да пътуват в чужбина?',
+    a: 'Пътуването зад граница беше строго контролирано. Много хора не получаваха паспорти, а тези, които пътуваха, бяха внимателно подбирани. Често се изискваше разрешение от властите.'
+  },
+  {
+    id: 3,
+    q: 'Бяха ли всички имена разрешени при раждане?',
+    a: 'Не. Имаше нормативни практики и регистри, които ограничават избора на имена — западни или „неподходящи“ имена понякога бяха отказвани.'
+  },
+  {
+    id: 4,
+    q: 'Какви наказания имаше за религиозни практики?',
+    a: 'Религиозната активност често се счита за подозрителна; свещеници и религиозни дейци бяха подлагани на наблюдение и в някои случаи обвинявани в шпионаж или лишавани от права.'
+  },
+  {
+    id: 5,
+    q: 'Кои хора имаха достъп до висши позиции?',
+    a: 'Често партийната принадлежност беше решаващ фактор. До висши длъжности и професионална реализация се допущаха най-вече партийни членове или "благонадеждни" лица.'
+  },
+  {
+    id: 6,
+    q: 'Как да цитирам източници в проект за конкурса?',
+    a: 'Използвай стандартни академични практики: посочи автора, заглавието, годината и линк/архивен референт. Ако използваш архивни документи, опиши кой архив, фонд и номер на документ.'
+  },
+  {
+    id: 7,
+    q: 'Как да подготвя интерактивна карта с ИИ?',
+    a: 'Може да използваш генеративни ИИ инструменти за реконструкция и след това да вградиш резултатите в уеб карта (например Leaflet). Включи кратки описания и източници за всяко място.'
+  },
+  {
+    id: 8,
+    q: 'Как да докажа легитимността на документи от комунистическия период?',
+    a: 'Проверявай архивни метаданни: номер на фонд, папка и документ; сравнявай почерци и печати; потърси свидетелски показания и втора независима справка.'
+  },
+  {
+    id: 9,
+    q: 'Искам да направя чатбот — откъде да започна?',
+    a: 'Започни със събиране на доказани факти и кратки отговори. Изгради база с Q&A, после направи интерфейс за търсене и сечение на подобни въпроси. Ако искаш генеративни отговори — можеш да свържеш бекенд към модел за език.'
+  },
+  {
+    id: 10,
+    q: 'Къде да изпратя проекта за конкурса?',
+    a: 'Според инструкциите можеш да изпратиш по имейл nhc.values@gmail.com или по пощата: София 1504, ул. Сан Стефано 4А, ап.16 (виж детайлите на сайта).'
+  }
+];
+
+function scoreMatch(input, item) {
+  // Прост скоринг: брой общи думи
+  const tokenize = s => s.toLowerCase().replace(/[.,!?()"']/g, '').split(/\s+/).filter(Boolean);
+  const inTok = tokenize(input);
+  const qTok = tokenize(item.q + ' ' + item.a);
+  const setQ = new Set(qTok);
+  let score = 0;
+  inTok.forEach(t => { if (setQ.has(t)) score += 1; });
+  return score;
+}
+
+export default function NikAiChatbot() {
+  const [messages, setMessages] = useState([
+    { from: 'bot', text: 'Здравей! Аз съм НИК AI — чатбот за въпроси относно комунизма и нарушените права. Попитай ме нещо.' }
+  ]);
+  const [input, setInput] = useState('');
+  const [loading, setLoading] = useState(false);
+  const listRef = useRef(null);
+
+  useEffect(() => {
+    if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight;
+  }, [messages]);
+
+  const handleAskLocal = async (text) => {
+    setLoading(true);
+    const scores = localKnowledge.map(item => ({ item, score: scoreMatch(text, item) }));
+    scores.sort((a,b) => b.score - a.score);
+    const best = scores[0];
+    // Ако резултатът е слаб (0) — предложи да перефразира
+    let answer;
+    if (best.score === 0) {
+      answer = 'Не съм сигурен/а за точния отговор — може ли да перефразираш въпроса или да ми дадеш повече детайли? Междувременно ето какво мога да предложа: ' + localKnowledge.slice(0,3).map(x=> x.q).join(' | ');
+    } else {
+      answer = best.item.a;
+    }
+    setMessages(prev => [...prev, { from: 'user', text }, { from: 'bot', text: answer }]);
+    setLoading(false);
+  };
+
+  // Ако искаш да свържеш към реален LLM: замени handleAskRemote с fetch към бекенд,
+  // който изпраща заявка към OpenAI/Anthropic/друга услуга и връща отговор.
+  // Важни са: rate limit, модерация и защита на API ключа (не го вкарвай във фронтенда!).
+
+  const handleSend = () => {
+    const text = input.trim();
+    if (!text) return;
+    // за прототип — използваме локална база
+    handleAskLocal(text);
+    setInput('');
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white flex items-center justify-center p-4">
+      <div className="w-full max-w-3xl bg-white shadow-xl rounded-2xl overflow-hidden grid grid-cols-1 md:grid-cols-3">
+        <div className="md:col-span-1 p-4 border-r hidden md:block">
+          <h2 className="text-xl font-semibold mb-3">НИК AI — помощник</h2>
+          <p className="text-sm mb-3">Питай за права, примери и как да направиш проект. Това е образователен бот — не събира лични данни.</p>
+          <div className="text-sm">
+            <b>Бързи въпроси:</b>
+            <ul className="mt-2 list-disc ml-5 text-sm">
+              <li>Каква беше свободата на словото?</li>
+              <li>Можеха ли да пътуват хората?</li>
+              <li>Къде да изпратя проекта?</li>
+            </ul>
+          </div>
+          <div className="mt-4 text-xs text-gray-500">За публично разгръщане: добави модерация и логване без лични данни.</div>
+        </div>
+
+        <div className="md:col-span-2 p-4 flex flex-col">
+          <div ref={listRef} className="flex-1 overflow-auto mb-4 p-2 space-y-3" style={{ maxHeight: '60vh' }}>
+            {messages.map((m, idx) => (
+              <div key={idx} className={m.from === 'bot' ? 'text-left' : 'text-right'}>
+                <div className={`inline-block px-4 py-2 rounded-xl ${m.from === 'bot' ? 'bg-gray-100' : 'bg-indigo-100'}`}>
+                  <div className="text-sm">{m.text}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <input
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') handleSend(); }}
+              placeholder="Напиши въпрос..."
+              className="flex-1 border rounded-full px-4 py-2 outline-none focus:ring-2 focus:ring-indigo-200"
+            />
+            <button onClick={handleSend} disabled={loading} className="px-4 py-2 rounded-full bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-60">{loading ? '...' : 'Изпрати'}</button>
+          </div>
+
+          <div className="mt-3 text-xs text-gray-500">Прототип: локална база от факти. За генеративни отговори — свържи бекенд към LLM (виж коментарите в кода).</div>
+        </div>
+      </div>
+    </div>
+  );
+}
