@@ -1,42 +1,33 @@
-
-import express from "express";
-import bodyParser from "body-parser";
-import fetch from "node-fetch";
-import dotenv from "dotenv";
-import path from "path";
+import express from 'express';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import OpenAI from 'openai';
 
 dotenv.config();
+
 const app = express();
-const __dirname = path.resolve();
+app.use(cors());
+app.use(express.json());
 
-app.use(bodyParser.json());
-app.use(express.static("public"));
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-app.post("/api/ask", async (req, res) => {
-    const question = req.body.question;
+app.post('/chat', async (req, res) => {
+  try {
+    const userMessage = req.body.message;
 
-    try {
-        const response = await fetch("https://api.openai.com/v1/chat/completions", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`
-            },
-            body: JSON.stringify({
-                model: "gpt-4o-mini",
-                messages: [
-                    { role: "system", content: "Ти си чатбот, който отговаря само на въпроси за комунизма. Отговаряй ясно, точно и кратко." },
-                    { role: "user", content: question }
-                ]
-            })
-        });
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        { role: "system", content: "You are an educational assistant answering only questions about communism neutrally." },
+        { role: "user", content: userMessage }
+      ]
+    });
 
-        const data = await response.json();
-        res.json({ answer: data.choices[0].message.content });
-
-    } catch (error) {
-        res.json({ answer: "Грешка при обработка на заявката." });
-    }
+    res.json({ reply: completion.choices[0].message.content });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Server error" });
+  }
 });
 
 app.listen(3000, () => console.log("Server running on port 3000"));
