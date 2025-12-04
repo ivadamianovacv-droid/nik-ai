@@ -1,26 +1,67 @@
+
 <!DOCTYPE html>
 <html lang="bg">
 <head>
 <meta charset="UTF-8">
-<title>Nik AI</title>
+<title>Nik AI Chatbot</title>
+<style>
+body {
+    font-family: Arial, sans-serif;
+    background: #f0f2f5;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+}
+#chat {
+    width: 400px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 0 15px rgba(0,0,0,0.2);
+    padding: 20px;
+}
+#messages {
+    height: 300px;
+    overflow-y: auto;
+    border: 1px solid #ddd;
+    padding: 10px;
+    border-radius: 8px;
+}
+#input {
+    width: 100%;
+    margin-top: 10px;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+}
+.popup {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: #222;
+    color: #fff;
+    padding: 15px;
+    text-align: center;
+    font-size: 18px;
+}
+</style>
+<script>
+window.onload = () => {
+    const popup = document.createElement('div');
+    popup.className = 'popup';
+    popup.innerText = 'Направено от Ива Дамянова Цветанова';
+    document.body.appendChild(popup);
+    setTimeout(() => popup.remove(), 3000);
+};
+</script>
 </head>
 <body>
-<h1>Nik AI Chatbot</h1>
-<input id="msg" placeholder="Въпрос за комунизма..."/>
-<button onclick="sendMsg()">Прати</button>
-<pre id="chat"></pre>
-
-<script>
-async function sendMsg(){
-  const m = document.getElementById("msg").value;
-  const res = await fetch("/chat", {
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body: JSON.stringify({message:m})
-  });
-  const data = await res.json();
-  document.getElementById("chat").textContent += "\nТи: "+m+"\nБот: "+data.reply+"\n";
-}
-</script>
+<div id="chat">
+    <h2>Nik AI Chatbot</h2>
+    <div id="messages"></div>
+    <input id="input" placeholder="Пиши тук...">
+</div>
 </body>
 </html>
