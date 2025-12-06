@@ -1,43 +1,104 @@
 import express from "express";
-import path from "path";
-import { fileURLToPath } from "url";
-import { config } from "dotenv";
-import OpenAI from "openai";
-
-config();
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import cors from "cors";
 
 const app = express();
-app.use(express.static(path.join(__dirname, "public")));
-
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "index.html"));
-});
-
+app.use(cors());
 app.use(express.json());
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+/* ------------------------------
+   БАЗА ОТ ЗНАНИЯ (РАЗШИРЕНА)
+--------------------------------*/
+const knowledge = [
+    {
+        keywords: ["какво е комунизъм", "какво представлява", "дефиниция"],
+        answer: "Комунизмът е идеология, която цели общество без класи, частна собственост върху средствата за производство и социални неравенства."
+    },
+    {
+        keywords: ["комунизъм българия", "комунистически режим", "бкп", "1944", "1989"],
+        answer: "В България комунизмът управлява от 1944 до 1989 г. след преврата на 9 септември. Режимът е еднопартиен, под ръководството на БКП, със силно влияние от СССР."
+    },
+    {
+        keywords: ["тодор живков"],
+        answer: "Тодор Живков е лидер на България по времето на комунизма (1954–1989). Управлението му е най-дългото в историята на страната и е свързано със стабилност, но и ограничаване на свободите."
+    },
+    {
+        keywords: ["социализъм", "разлика социализъм комунизъм"],
+        answer: "Социализмът е преходен етап към комунизма. Държавата контролира икономиката и производството, а комунизмът цели напълно безкласово общество."
+    },
+    {
+        keywords: ["ссср", "съветски съюз", "сталин"],
+        answer: "СССР е първата комунистическа държава, създадена след революцията през 1917 г. Управлявана е от комунистическата партия и играе ключова роля в световната политика."
+    },
+    {
+        keywords: ["цензура", "свобода", "забрана", "репресии"],
+        answer: "Комунистическите режими често ограничават свободата на словото, медиите и политическите опоненти чрез цензура и репресии."
+    },
+    {
+        keywords: ["дс", "държавна сигурност", "тайни служби"],
+        answer: "Държавна сигурност е тайната служба на комунистическа България. Контролира гражданите, следи политическите опоненти и поддържа режима."
+    },
+    {
+        keywords: ["икономика", "планова икономика"],
+        answer: "При комунизма се използва планова икономика – държавата определя какво се произвежда, в какви количества и на какви цени."
+    },
+    {
+        keywords: ["падането", "краят", "10 ноември", "1989"],
+        answer: "Краят на комунизма в България настъпва на 10 ноември 1989 г. с оставката на Тодор Живков и последвалите политически промени."
+    },
+    {
+        keywords: ["лагери", "белене", "гулар", "гулаг"],
+        answer: "По време на комунизма в България и СССР съществуват трудови лагери като Белене и ГУЛАГ, където се изпращат политически затворници."
+    },
+    {
+        keywords: ["образование", "училище", "пропаганда"],
+        answer: "В комунистическите държави образованието често е използвано за пропаганда в подкрепа на режима и идеологията."
+    }
+];
 
-app.post("/chat", async (req, res) => {
-  try {
-    const userMessage = req.body.message;
+/* ------------------------------
+   УМНА ЛОГИКА ЗА ОТГОВАРЯНЕ
+--------------------------------*/
+function intelligentAnswer(question) {
+    const q = question.toLowerCase();
 
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        { role: "system", content: "You are Nik AI chatbot." },
-        { role: "user", content: userMessage }
-      ]
-    });
+    // 1. Точно съвпадение на ключови думи
+    for (const item of knowledge) {
+        if (item.keywords.some(kw => q.includes(kw))) {
+            return item.answer;
+        }
+    }
 
-    res.json({ reply: completion.choices[0].message.content });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "server error" });
-  }
+    // 2. Разпознаване на намерение
+    if (
+        q.includes("какво") ||
+        q.includes("как") ||
+        q.includes("защо") ||
+        q.includes("кога") ||
+        q.includes("кой")
+    ) {
+        return "Задай ми въпрос за комунизма — например за БКП, Тодор Живков, СССР, лагерите, икономиката или периода 1944–1989.";
+    }
+
+    // 3. Ако въпросът е извън темата
+    return "Мога да отговарям единствено на въпроси, свързани с комунизма. Опитай да ме попиташ нещо по темата!";
+}
+
+/* ------------------------------
+   API
+--------------------------------*/
+app.post("/ask", (req, res) => {
+    const { question } = req.body;
+
+    if (!question) {
+        return res.json({ answer: "Моля, въведи въпрос." });
+    }
+
+    const response = intelligentAnswer(question);
+    res.json({ answer: response });
 });
 
-const PORT = process.env.PORT || 10000;
-app.listen(PORT, () => console.log("Server running on port " + PORT));
+/* ------------------------------
+   СТАРТ НА СЪРВЪРА
+--------------------------------*/
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log("NIK AI server running on port " + PORT));
